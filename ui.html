@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      padding-left: 12px;
+      padding-right: 12px;
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+      background-color: #f3f3f3;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      padding-top: 12px;
+      padding-bottom: 12px;
+    }
+    .tabs {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .tab {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 300;
+      flex: 1;
+      padding-bottom: 12px;
+      text-align: center;
+      cursor: pointer;
+      border-bottom: 1px solid #d6d6d6;
+    }
+    .tab.active {
+      font-family: 'Roboto', sans-serif;
+      font-weight: 500;
+      border-bottom: 3px solid #3F5EFB;
+    }
+    .content {
+      flex: 1;
+      display: none;
+    }
+    .content.active {
+      display: block;
+    }
+    .textarea_page, .textarea_frame, .input, .select, .button {
+      font-family: 'Roboto', sans-serif;
+      width: 100%;
+      padding: 12px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    .textarea_page::placeholder,
+    .textarea_frame::placeholder,
+    .input::placeholder {
+      color: #999;
+    }
+    .select {
+      font-family: 'Roboto', sans-serif;
+      width: 100%;
+      padding-left: 12px;
+      padding-right: 40px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    .textarea_page {
+      height: 255px;
+    }
+    .textarea_frame {
+      height: 202px;
+    }
+    .button {
+      background-color: rgba(63, 94, 251, 1);
+      color: white;
+      cursor: pointer;
+      text-align: center;
+    }
+    /* Light color for default placeholder */
+    select:invalid {
+      color: #999;
+    }
+
+    /* Dark color for selected options */
+    select option {
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="tabs">
+      <div class="tab active" data-tab="annotate-page">Page log</div>
+      <div class="tab" data-tab="annotate-frame">Frame log</div>
+    </div>
+    <div class="content active" id="annotate-page">
+      <textarea class="textarea_page" id="page-description" placeholder="Describe the change (mandatory)"></textarea>
+      <input type="text" class="input" id="page-requested-by" placeholder="Change requested by (optional)">
+      <div class="button" id="log-page-change">Log change</div>
+    </div>
+    <div class="content" id="annotate-frame">
+      <select class="select" id="frame-select" required>
+        <option value="" disabled selected hidden>Select Frame (mandatory)</option>
+      </select>
+      <textarea class="textarea_frame" id="frame-description" placeholder="Describe the change (mandatory)"></textarea>
+      <input type="text" class="input" id="frame-requested-by" placeholder="Change requested by (optional)">
+      <div class="button" id="log-frame-change">Log change</div>
+    </div>
+  </div>
+  <script>
+    const tabs = document.querySelectorAll('.tab');
+    const contents = document.querySelectorAll('.content');
+
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        tabs.forEach(t => t.classList.remove('active'));
+        contents.forEach(c => c.classList.remove('active'));
+
+        tab.classList.add('active');
+        document.getElementById(tab.dataset.tab).classList.add('active');
+      });
+    });
+
+    document.getElementById('log-page-change').addEventListener('click', () => {
+      const pageLogButton = document.getElementById('log-page-change');
+      if (pageLogButton.disabled) return; // Prevent action if disabled
+      const description = document.getElementById('page-description').value;
+      const requestedBy = document.getElementById('page-requested-by').value;
+      parent.postMessage({ pluginMessage: { type: 'annotate-page', description, requestedBy } }, '*');
+    });
+
+    document.getElementById('log-frame-change').addEventListener('click', () => {
+      const frameLogButton = document.getElementById('log-frame-change');
+      if (frameLogButton.disabled) return; // Prevent action if disabled
+      const frameId = document.getElementById('frame-select').value;
+      const description = document.getElementById('frame-description').value;
+      const requestedBy = document.getElementById('frame-requested-by').value;
+      parent.postMessage({ pluginMessage: { type: 'annotate-frame', frameId, description, requestedBy } }, '*');
+    });
+
+    window.onmessage = (event) => {
+      const msg = event.data.pluginMessage;
+      if (msg.type === 'frame-options') {
+        const frameSelect = document.getElementById('frame-select');
+        frameSelect.innerHTML = '<option value="">Select Frame (mandatory)</option>'; // Clear all options
+
+        msg.frameOptions.forEach(option => {
+          const opt = document.createElement('option');
+          opt.value = option.id;
+          opt.textContent = option.name;
+          if (msg.selectedFrameId && option.id === msg.selectedFrameId) {
+            opt.selected = true;
+          }
+          frameSelect.appendChild(opt);
+        });
+
+        // Enable the button if a frame is selected
+        document.getElementById('log-frame-change').disabled = !frameSelect.value;
+      }
+
+      if (msg.type === 'selection-changed') {
+        const frameSelect = document.getElementById('frame-select');
+        frameSelect.value = msg.selectedFrameId || '';
+        document.getElementById('log-frame-change').disabled = !frameSelect.value;
+      }
+    };
+  // Request frame options on load
+  parent.postMessage({ pluginMessage: { type: 'get-frames' } }, '*');
+  </script>
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Function to check if all required fields are filled
+    function checkFields() {
+        var pageDescription = document.getElementById('page-description').value.trim();
+        var frameSelect = document.getElementById('frame-select').value.trim();
+        var frameDescription = document.getElementById('frame-description').value.trim();
+        var pageLogButton = document.getElementById('log-page-change');
+        var frameLogButton = document.getElementById('log-frame-change');
+        // Check for Page log button
+        if (pageDescription !== '') {
+            pageLogButton.disabled = false;
+            pageLogButton.style.backgroundColor = '';
+        } else {
+            pageLogButton.disabled = true;
+            pageLogButton.style.backgroundColor = '#BABBBE';
+        }
+        // Check for Frame log button
+        if (frameSelect !== '' && frameDescription !== '') {
+            frameLogButton.disabled = false;
+            frameLogButton.style.backgroundColor = '';
+        } else {
+            frameLogButton.disabled = true;
+            frameLogButton.style.backgroundColor = '#BABBBE';
+        }
+    }
+    // Add event listeners to required fields
+    document.getElementById('page-description').addEventListener('input', checkFields);
+    document.getElementById('frame-select').addEventListener('input', checkFields);
+    document.getElementById('frame-description').addEventListener('input', checkFields);
+    // Initial check
+    checkFields();
+});
+</script>
+
+</body>
+</html>
