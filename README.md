@@ -1,7 +1,7 @@
 
 # Logger
 
-LoggerUI is a Figma plugin designed to help users log changes made to pages and frames within their Figma projects. The plugin provides an easy-to-use interface with two tabs: "Page log" and "Frame log".
+Logger is a Figma plugin designed to help users log changes made to pages and frames within their Figma projects. The plugin provides an easy-to-use interface with two tabs: "Page log" and "Frame log".
 
 ## Features
 
